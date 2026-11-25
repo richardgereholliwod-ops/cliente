@@ -42,7 +42,10 @@ function App() {
   const sortIcon = key => sort === key ? ascending ? <ArrowUp size={12}/> : <ArrowDown size={12}/> : <ArrowDownUp size={12}/>
   async function sendSignInLink(event) {
     event.preventDefault(); setAuthBusy(true); setAuthError('')
-    const { error: signInError } = await supabase.auth.signInWithOtp({ email: authEmail.trim(), options: { shouldCreateUser: false } })
+    const { error: signInError } = await supabase.auth.signInWithOtp({
+      email: authEmail.trim(),
+      options: { shouldCreateUser: false, emailRedirectTo: window.location.href },
+    })
     if (signInError) setAuthError(signInError.message); else setEmailSent(true)
     setAuthBusy(false)
   }
