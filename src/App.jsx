@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, ArrowDown, ArrowDownUp, ArrowRight, ArrowUp, ArrowUpRight, Building2, Check, ChevronDown, CircleHelp, Clock3, Command, Download, Ellipsis, LayoutDashboard, LoaderCircle, LogOut, Mail, MoreHorizontal, Plus, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Users, X } from 'lucide-react'
 import { hasSupabaseConfig, supabase } from './supabase.js'
 
+const CLIENT_ACCESS_EMAIL = 'richardgereholliwod@gmail.com'
+
 function Avatar({ name, index = 0, small = false }) {
   const colors = ['blue', 'peach', 'lavender', 'mint', 'rose']
   const initials = name?.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase() || '?'
@@ -9,7 +11,7 @@ function Avatar({ name, index = 0, small = false }) {
 }
 
 function App() {
-  const [session, setSession] = useState(undefined), [authEmail, setAuthEmail] = useState(''), [emailSent, setEmailSent] = useState(false), [authBusy, setAuthBusy] = useState(false), [authError, setAuthError] = useState('')
+  const [session, setSession] = useState(undefined), [authEmail, setAuthEmail] = useState(CLIENT_ACCESS_EMAIL), [emailSent, setEmailSent] = useState(false), [authBusy, setAuthBusy] = useState(false), [authError, setAuthError] = useState('')
   const [clients, setClients] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState('')
   const [query, setQuery] = useState(''), [sort, setSort] = useState('id'), [ascending, setAscending] = useState(true), [copied, setCopied] = useState(null)
   const loadClients = useCallback(async () => {
@@ -41,16 +43,33 @@ function App() {
   }
   const sortIcon = key => sort === key ? ascending ? <ArrowUp size={12}/> : <ArrowDown size={12}/> : <ArrowDownUp size={12}/>
   async function sendSignInLink(event) {
-    event.preventDefault(); setAuthBusy(true); setAuthError('')
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: authEmail.trim(),
-      options: { shouldCreateUser: false, emailRedirectTo: window.location.href },
-    })
-    if (signInError) setAuthError(signInError.message); else setEmailSent(true)
-    setAuthBusy(false)
+    event.preventDefault()
+    setAuthError('')
+    const email = authEmail.trim().toLocaleLowerCase('en')
+    if (!hasSupabaseConfig || !supabase) {
+      setAuthError('Falta configurar la conexión a Supabase. Revisa las variables VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.')
+      return
+    }
+    if (email !== CLIENT_ACCESS_EMAIL) {
+      setAuthError(`El acceso está reservado para ${CLIENT_ACCESS_EMAIL}.`)
+      return
+    }
+    setAuthBusy(true)
+    try {
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true, emailRedirectTo: window.location.href },
+      })
+      if (signInError) setAuthError(signInError.message)
+      else setEmailSent(true)
+    } catch (signInError) {
+      setAuthError(signInError instanceof Error ? signInError.message : 'No se pudo solicitar el enlace de acceso.')
+    } finally {
+      setAuthBusy(false)
+    }
   }
   if (session === undefined) return <div className="auth-screen"><LoaderCircle size={22} className="spin"/></div>
-  if (!session) return <main className="auth-screen"><section className="auth-card"><a className="brand auth-brand" href="#inicio"><span className="brand-mark"><i/><i/><i/><i/></span><span>lumen<span className="accent">.</span></span></a><span className="auth-symbol"><ShieldCheck size={22}/></span><h1>Accede a tus clientes<span className="accent">.</span></h1><p>Inicia sesión con el correo autorizado para consultar el directorio protegido.</p>{emailSent ? <div className="auth-success"><Mail size={19}/><strong>Revisa tu correo</strong><span>Enviamos un enlace de acceso a {authEmail.trim()}. Ábrelo para entrar a tu directorio.</span></div> : <form onSubmit={sendSignIn}><label htmlFor="access-email">CORREO ELECTRÓNICO</label><input id="access-email" type="email" autoComplete="email" placeholder="tu@correo.com" value={authEmail} onChange={event => setAuthEmail(event.target.value)} required/><button className="button button-primary auth-submit" type="submit" disabled={authBusy}>{authBusy ? <LoaderCircle size={15} className="spin"/> : <Mail size={15}/>}Enviar enlace de acceso</button>{authError && <p className="auth-error">{authError}</p>}</form>}<div className="auth-foot"><ShieldCheck size={13}/> Acceso protegido por Supabase</div></section></main>
+  if (!session) return <main className="auth-screen"><section className="auth-card"><a className="brand auth-brand" href="#inicio"><span className="brand-mark"><i/><i/><i/><i/></span><span>lumen<span className="accent">.</span></span></a><span className="auth-symbol"><ShieldCheck size={22}/></span><h1>Accede a tus clientes<span className="accent">.</span></h1><p>Usa el correo autorizado. En el primer acceso crearemos tu cuenta al confirmar el enlace.</p>{emailSent ? <div className="auth-success"><Mail size={19}/><strong>Revisa tu correo</strong><span>Enviamos un enlace de acceso a {authEmail.trim()}. Confírmalo para entrar a tu directorio.</span></div> : <form onSubmit={sendSignIn}><label htmlFor="access-email">CORREO ELECTRÓNICO</label><input id="access-email" type="email" autoComplete="email" placeholder="tu@correo.com" value={authEmail} onChange={event => setAuthEmail(event.target.value)} required/><button className="button button-primary auth-submit" type="submit" disabled={authBusy}>{authBusy ? <LoaderCircle size={15} className="spin"/> : <Mail size={15}/>}Enviar enlace de acceso</button>{authError && <p className="auth-error">{authError}</p>}</form>}<div className="auth-foot"><ShieldCheck size={13}/> Acceso protegido por Supabase</div></section></main>
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#inicio"><span className="brand-mark"><i/><i/><i/><i/></span><span>lumen<span className="accent">.</span></span></a>
